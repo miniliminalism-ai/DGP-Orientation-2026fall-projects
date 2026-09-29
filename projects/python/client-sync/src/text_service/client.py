@@ -17,6 +17,22 @@ def exchange(
     return response.status_code, result
 
 
+def read_multiline() -> str:
+    print("Enter text. Finish with a line containing only .END")
+    print("Use \\.END for a literal .END line.")
+    lines = []
+
+    while True:
+        line = input()
+        if line == ".END":
+            break
+        if line == "\\.END":
+            line = ".END"
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:7878")
@@ -46,8 +62,18 @@ def main() -> None:
                         "logout": ("DELETE", "/sessions/current"),
                         "list": ("GET", "/texts"),
                     }[command]
-                elif command in ("echo", "delete-user", "put", "get", "delete"):
-                    print("This task is not implemented in the starting code yet.")
+                elif command == "echo":
+                    body = {"text": read_multiline()}
+                    method, path = "POST", "/echo"
+                elif command == "put":
+                    name = input("Text name: ")
+                    body = {"text": read_multiline()}
+                    method, path = "PUT", f"/texts/{name}"
+                elif command == "get":
+                    name = input("Text name: ")
+                    method, path = "GET", f"/texts/{name}"
+                elif command in ("delete-user", "delete"):
+                    print("This command is not implemented yet.")
                     continue
                 else:
                     print("Unknown command.")
