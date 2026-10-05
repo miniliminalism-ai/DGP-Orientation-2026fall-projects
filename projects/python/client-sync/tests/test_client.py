@@ -59,24 +59,6 @@ def test_echo_request() -> None:
     ) as client:
         assert exchange(client, "POST", "/echo", body={"text": "Hello"}) == (200, {"data": "Hello"})
 
-def test_echo_request() -> None:
-    def respond(request: httpx.Request) -> httpx.Response:
-        assert request.method == "POST"
-        assert request.url.path == "/echo"
-        assert json.loads(request.content) == {"text": "Hello\n你好"}
-
-        return httpx.Response(200, json={"data": "Hello\n你好"})
-
-    with httpx.Client(
-        base_url="http://localhost",
-        transport=httpx.MockTransport(respond),
-    ) as client:
-        assert exchange(
-            client,
-            "POST",
-            "/echo",
-            body={"text": "Hello\n你好"},
-        ) == (200, {"data": "Hello\n你好"})
 
 def test_put_request() -> None:
     def respond(request: httpx.Request) -> httpx.Response:
@@ -97,6 +79,7 @@ def test_put_request() -> None:
             body={"text": "Hello\n你好"},
         ) == (200, {"data": None})
 
+
 def test_get_request() -> None:
     def respond(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
@@ -113,3 +96,41 @@ def test_get_request() -> None:
             "GET",
             "/texts/notes",
         ) == (200, {"data": {"text": "Hello\n你好"}})
+
+
+def test_delete_request() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.method == "DELETE"
+        assert request.url.path == "/texts/notes"
+
+        return httpx.Response(200, json={"data": None})
+
+    with httpx.Client(
+        base_url="http://localhost",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        assert exchange(
+            client,
+            "DELETE",
+            "/texts/notes",
+        ) == (200, {"data": None})
+
+
+def test_delete_user_request() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.method == "DELETE"
+        assert request.url.path == "/users/me"
+        assert request.headers["Authorization"] == "Bearer test-token"
+
+        return httpx.Response(200, json={"data": None})
+
+    with httpx.Client(
+        base_url="http://localhost",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        assert exchange(
+            client,
+            "DELETE",
+            "/users/me",
+            token="test-token",
+        ) == (200, {"data": None})

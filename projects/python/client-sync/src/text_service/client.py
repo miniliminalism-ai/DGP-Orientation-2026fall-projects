@@ -72,9 +72,11 @@ def main() -> None:
                 elif command == "get":
                     name = input("Text name: ")
                     method, path = "GET", f"/texts/{name}"
-                elif command in ("delete-user", "delete"):
-                    print("This command is not implemented yet.")
-                    continue
+                elif command == "delete":
+                    name = input("Text name: ")
+                    method, path = "DELETE", f"/texts/{name}"
+                elif command == "delete-user":
+                    method, path = "DELETE", "/users/me"
                 else:
                     print("Unknown command.")
                     continue
