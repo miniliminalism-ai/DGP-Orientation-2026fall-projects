@@ -156,7 +156,7 @@ class Service:
                     return 404, {"message": "Text not found"}
                 del user.texts[name]
                 return 200, {"data": None}
-        protected = path in ("/texts", "/sessions/current")
+        protected = path in ("/texts", "/sessions/current", "/users/me")
         if protected:
             token = (
                 authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else ""
@@ -169,6 +169,17 @@ class Service:
                 if path == "/sessions/current" and method == "DELETE":
                     user.token = None
                     return 200, {"data": None}
+                if path == "/sessions/current" and method == "DELETE":
+                    user.token = None
+                    return 200, {"data": None}
+                if path == "/users/me" and method == "DELETE":
+                    username = next(
+                        name for name, value in self.users.items() if value is user
+                    )
+                    del self.users[username]
+                    return 200, {"data": None}
+                if path == "/texts" and method == "GET":
+                    return 200, {"data": sorted(user.texts)}
                 if path == "/texts" and method == "GET":
                     return 200, {"data": sorted(user.texts)}
         return 404, {"message": "Not found"}
