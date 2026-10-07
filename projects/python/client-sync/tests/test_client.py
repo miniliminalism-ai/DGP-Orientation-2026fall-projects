@@ -134,3 +134,45 @@ def test_delete_user_request() -> None:
             "/users/me",
             token="test-token",
         ) == (200, {"data": None})
+
+
+def test_exchange_non_json_response() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="Internal Server Error")
+
+    with httpx.Client(
+        base_url="http://localhost",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        assert exchange(client, "GET", "/ping") == (
+            500,
+            {"message": "Internal Server Error"},
+        )
+
+
+def test_exchange_json_error_response() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"message": "Login required"})
+
+    with httpx.Client(
+        base_url="http://localhost",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        assert exchange(client, "GET", "/texts", "expired-token") == (
+            401,
+            {"message": "Login required"},
+        )
+
+
+def test_exchange_network_error() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection failed", request=request)
+
+    with (
+        httpx.Client(
+            base_url="http://localhost",
+            transport=httpx.MockTransport(respond),
+        ) as client,
+        pytest.raises(httpx.HTTPError),
+    ):
+        exchange(client, "GET", "/ping")

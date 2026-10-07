@@ -87,7 +87,7 @@ def main() -> None:
                         token = result["data"]["token"]
                     if status == 401:
                         print("Please log in again.")
-                    if status == 401 or (command == "logout" and status == 200):
+                    if status == 401 or (command in ("logout", "delete-user") and status == 200):
                         token = ""
                 except (httpx.HTTPError, ValueError, KeyError) as exc:
                     print(f"Request failed: {exc}")
