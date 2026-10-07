@@ -58,7 +58,6 @@ def test_body_limit_and_routing(client: TestClient) -> None:
     [
         ("POST", "/echo"),
         ("DELETE", "/users/me"),
-        ("PUT", "/texts/note"),
         ("GET", "/texts/note"),
         ("DELETE", "/texts/note"),
     ],

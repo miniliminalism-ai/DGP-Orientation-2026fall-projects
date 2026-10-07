@@ -38,6 +38,7 @@ def test_concurrent_registration() -> None:
         statuses = list(pool.map(lambda _: service.handle("POST", "/users", body, "")[0], range(4)))
     assert sorted(statuses) == [201, 409, 409, 409]
 
+
 def test_echo() -> None:
     service = Service()
 
@@ -61,3 +62,21 @@ def test_echo() -> None:
 
     too_long = "a" * 65_537
     assert service.handle("POST", "/echo", {"text": too_long}, "")[0] == 413
+
+
+def test_put_text() -> None:
+    service = Service()
+    account = {"username": "alice", "password": "password1"}
+
+    service.handle("POST", "/users", account, "")
+    token = service.handle("POST", "/sessions", account, "")[1]["data"]["token"]
+
+    assert service.handle("PUT", "/texts/note", {"text": "Hello RM"}, f"Bearer {token}") == (
+        200,
+        {"data": None},
+    )
+
+    assert service.handle("GET", "/texts", None, f"Bearer {token}") == (
+        200,
+        {"data": ["note"]},
+    )

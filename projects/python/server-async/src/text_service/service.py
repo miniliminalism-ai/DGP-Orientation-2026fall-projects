@@ -1,6 +1,5 @@
 """In-memory baseline. Implement the task routes in handle()."""
 
-from email.mime import text
 import hashlib
 import hmac
 import re
@@ -16,10 +15,15 @@ ROUTES = (
     ("POST", "/sessions"),
     ("DELETE", "/sessions/current"),
     ("GET", "/texts"),
+    ("PUT", "/texts/{name}"),
 )
 
 
 def route_error(method: str, path: str) -> int | None:
+    if path.startswith("/texts/"):
+        name = path.removeprefix("/texts/")
+        if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+            return None if method in ("PUT", "GET", "DELETE") else 405
     allowed = next((verb for verb, route in ROUTES if route == path), None)
     if allowed is None:
         return 404
@@ -91,6 +95,26 @@ class Service:
                 user.token = secrets.token_urlsafe(32)
                 # Later server task: record a deadline and return expires_in.
                 return 200, {"data": {"token": user.token}}
+        if method == "PUT" and path.startswith("/texts/"):
+            name = path.removeprefix("/texts/")
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+                return 400, {"message": "Invalid text name"}
+            if not isinstance(body, dict) or set(body) != {"text"}:
+                return 400, {"message": "Expected text"}
+            text = body["text"]
+            if not isinstance(text, str):
+                return 400, {"message": "text must be a string"}
+            if len(text.encode("utf-8")) > 65_536:
+                return 413, {"message": "Text too large"}
+            token = (
+                authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else ""
+            )
+            with self.lock:
+                user = next((u for u in self.users.values() if token and u.token == token), None)
+                if user is None:
+                    return 401, {"message": "Login required"}
+                user.texts[name] = text
+            return 200, {"data": None}
         protected = path in ("/texts", "/sessions/current")
         if protected:
             token = (
