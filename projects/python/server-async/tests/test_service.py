@@ -80,3 +80,18 @@ def test_put_text() -> None:
         200,
         {"data": ["note"]},
     )
+
+def test_get_text() -> None:
+    service = Service()
+    account = {"username": "alice", "password": "password1"}
+
+    service.handle("POST", "/users", account, "")
+    token = service.handle("POST", "/sessions", account, "")[1]["data"]["token"]
+
+    service.handle("PUT", "/texts/note", {"text": "Hello RM"}, f"Bearer {token}")
+
+    assert service.handle("GET", "/texts/note", None, f"Bearer {token}") == (
+        200,
+        {"data": "Hello RM"},
+    )
+    assert service.handle("GET", "/texts/missing", None, f"Bearer {token}")[0] == 404

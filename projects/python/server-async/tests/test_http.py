@@ -64,7 +64,6 @@ async def test_body_limit_and_routing(client: AsyncClient) -> None:
     ("method", "path"),
     [
         ("DELETE", "/users/me"),
-        ("GET", "/texts/note"),
         ("DELETE", "/texts/note"),
     ],
 )
