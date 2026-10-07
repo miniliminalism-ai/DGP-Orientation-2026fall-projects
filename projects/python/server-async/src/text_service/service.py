@@ -135,6 +135,27 @@ class Service:
                 if name not in user.texts:
                     return 404, {"message": "Text not found"}
                 return 200, {"data": user.texts[name]}
+        if method == "DELETE" and path.startswith("/texts/"):
+            name = path.removeprefix("/texts/")
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+                return 400, {"message": "Invalid text name"}
+
+            token = (
+                authorization.removeprefix("Bearer ")
+                if authorization.startswith("Bearer ")
+                else ""
+            )
+            with self.lock:
+                user = next(
+                    (u for u in self.users.values() if token and u.token == token),
+                    None,
+                )
+                if user is None:
+                    return 401, {"message": "Login required"}
+                if name not in user.texts:
+                    return 404, {"message": "Text not found"}
+                del user.texts[name]
+                return 200, {"data": None}
         protected = path in ("/texts", "/sessions/current")
         if protected:
             token = (

@@ -95,3 +95,19 @@ def test_get_text() -> None:
         {"data": "Hello RM"},
     )
     assert service.handle("GET", "/texts/missing", None, f"Bearer {token}")[0] == 404
+
+def test_delete_text() -> None:
+    service = Service()
+    account = {"username": "alice", "password": "password1"}
+
+    service.handle("POST", "/users", account, "")
+    token = service.handle("POST", "/sessions", account, "")[1]["data"]["token"]
+
+    service.handle("PUT", "/texts/note", {"text": "Hello RM"}, f"Bearer {token}")
+
+    assert service.handle("DELETE", "/texts/note", None, f"Bearer {token}") == (
+        200,
+        {"data": None},
+    )
+    assert service.handle("GET", "/texts/note", None, f"Bearer {token}")[0] == 404
+    assert service.handle("DELETE", "/texts/note", None, f"Bearer {token}")[0] == 404

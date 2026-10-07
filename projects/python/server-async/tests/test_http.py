@@ -64,7 +64,6 @@ async def test_body_limit_and_routing(client: AsyncClient) -> None:
     ("method", "path"),
     [
         ("DELETE", "/users/me"),
-        ("DELETE", "/texts/note"),
     ],
 )
 async def test_unimplemented_routes_are_absent(client: AsyncClient, method: str, path: str) -> None:
