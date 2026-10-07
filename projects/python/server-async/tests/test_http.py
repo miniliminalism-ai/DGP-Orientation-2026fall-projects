@@ -55,7 +55,7 @@ async def test_body_limit_and_routing(client: AsyncClient) -> None:
     assert (await client.post("/users", content=exact)).status_code == 400
     assert (await client.post("/users", content=exact + b" ")).status_code == 413
     assert (await client.get("/missing")).status_code == 404
-    assert (await client.get("/echo")).status_code == 404
+    assert (await client.get("/echo")).status_code == 405
     assert (await client.patch("/ping")).status_code == 405
     assert (await client.get("/ping?test=1")).json() == {"data": "pong"}
 
@@ -63,7 +63,6 @@ async def test_body_limit_and_routing(client: AsyncClient) -> None:
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("POST", "/echo"),
         ("DELETE", "/users/me"),
         ("PUT", "/texts/note"),
         ("GET", "/texts/note"),
@@ -77,3 +76,18 @@ async def test_unimplemented_routes_are_absent(client: AsyncClient, method: str,
 @pytest.mark.parametrize("path", ["/ping", "/users", "/sessions", "/sessions/current", "/texts"])
 async def test_wrong_method_precedes_authentication(client: AsyncClient, path: str) -> None:
     assert (await client.patch(path)).status_code == 405
+
+async def test_echo(client: AsyncClient) -> None:
+    response = await client.post("/echo", json={"text": "你好\nRM"})
+    assert response.status_code == 200
+    assert response.json() == {"data": "你好\nRM"}
+
+    response = await client.post("/echo", json={"text": ""})
+    assert response.status_code == 200
+    assert response.json() == {"data": ""}
+
+    response = await client.post("/echo", json={"text": 123})
+    assert response.status_code == 400
+
+    response = await client.post("/echo", json={"text": "hello", "extra": "field"})
+    assert response.status_code == 400

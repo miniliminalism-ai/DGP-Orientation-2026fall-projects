@@ -1,5 +1,6 @@
 """In-memory baseline. Implement the task routes in handle()."""
 
+from email.mime import text
 import hashlib
 import hmac
 import re
@@ -10,6 +11,7 @@ from typing import Any
 
 ROUTES = (
     ("GET", "/ping"),
+    ("POST", "/echo"),
     ("POST", "/users"),
     ("POST", "/sessions"),
     ("DELETE", "/sessions/current"),
@@ -44,6 +46,15 @@ class Service:
             return status, {"message": "Not found" if status == 404 else "Method not allowed"}
         if method == "GET" and path == "/ping":
             return 200, {"data": "pong"}
+        if method == "POST" and path == "/echo":
+            if not isinstance(body, dict) or set(body) != {"text"}:
+                return 400, {"message": "Expected text"}
+            text = body["text"]
+            if not isinstance(text, str):
+                return 400, {"message": "text must be a string"}
+            if len(text.encode("utf-8")) > 65_536:
+                return 413, {"message": "Text too large"}
+            return 200, {"data": text}
         if path in ("/users", "/sessions") and method == "POST":
             if not isinstance(body, dict) or set(body) != {"username", "password"}:
                 return 400, {"message": "Expected username and password"}

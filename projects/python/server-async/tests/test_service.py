@@ -37,3 +37,27 @@ def test_concurrent_registration() -> None:
     with ThreadPoolExecutor(max_workers=4) as pool:
         statuses = list(pool.map(lambda _: service.handle("POST", "/users", body, "")[0], range(4)))
     assert sorted(statuses) == [201, 409, 409, 409]
+
+def test_echo() -> None:
+    service = Service()
+
+    assert service.handle("POST", "/echo", {"text": "你好\nRM"}, "") == (
+        200,
+        {"data": "你好\nRM"},
+    )
+    assert service.handle("POST", "/echo", {"text": ""}, "") == (
+        200,
+        {"data": ""},
+    )
+
+    for body in (
+        None,
+        {},
+        {"text": "hello", "extra": "field"},
+        {"text": 123},
+        {"text": None},
+    ):
+        assert service.handle("POST", "/echo", body, "")[0] == 400
+
+    too_long = "a" * 65_537
+    assert service.handle("POST", "/echo", {"text": too_long}, "")[0] == 413
