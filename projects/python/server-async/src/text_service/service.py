@@ -23,9 +23,7 @@ ROUTES = (
 
 def route_error(method: str, path: str) -> int | None:
     if path.startswith("/texts/"):
-        name = path.removeprefix("/texts/")
-        if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
-            return None if method in ("PUT", "GET", "DELETE") else 405
+        return None if method in ("PUT", "GET", "DELETE") else 405
     allowed = next((verb for verb, route in ROUTES if route == path), None)
     if allowed is None:
         return 404

@@ -80,6 +80,7 @@ async def test_echo(client: AsyncClient) -> None:
     response = await client.post("/echo", json={"text": "hello", "extra": "field"})
     assert response.status_code == 400
 
+
 async def test_delete_account(client: AsyncClient) -> None:
     response = await client.post(
         "/users",
@@ -99,8 +100,111 @@ async def test_delete_account(client: AsyncClient) -> None:
     )
     assert response.status_code == 200
 
+    response = await client.get(
+        "/texts",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 401
+
     response = await client.post(
         "/sessions",
         json={"username": "alice", "password": "password1"},
     )
     assert response.status_code == 401
+
+
+async def test_text_crud(client: AsyncClient) -> None:
+    response = await client.post(
+        "/users",
+        json={"username": "alice", "password": "password1"},
+    )
+    assert response.status_code == 201
+
+    response = await client.post(
+        "/sessions",
+        json={"username": "alice", "password": "password1"},
+    )
+    token = response.json()["data"]["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.put(
+        "/texts/note",
+        json={"text": "Hello RM"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    response = await client.get("/texts/note", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"data": "Hello RM"}
+
+    response = await client.get("/texts", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"data": ["note"]}
+
+    response = await client.delete("/texts/note", headers=headers)
+    assert response.status_code == 200
+
+    response = await client.get("/texts/note", headers=headers)
+    assert response.status_code == 404
+
+
+async def test_account_text_isolation(client: AsyncClient) -> None:
+    response = await client.post(
+        "/users",
+        json={"username": "alice", "password": "password1"},
+    )
+    assert response.status_code == 201
+
+    response = await client.post(
+        "/users",
+        json={"username": "bob", "password": "password1"},
+    )
+    assert response.status_code == 201
+
+    response = await client.post(
+        "/sessions",
+        json={"username": "alice", "password": "password1"},
+    )
+    alice_token = response.json()["data"]["token"]
+
+    response = await client.post(
+        "/sessions",
+        json={"username": "bob", "password": "password1"},
+    )
+    bob_token = response.json()["data"]["token"]
+
+    alice_headers = {"Authorization": f"Bearer {alice_token}"}
+    bob_headers = {"Authorization": f"Bearer {bob_token}"}
+
+    response = await client.put(
+        "/texts/note",
+        json={"text": "Alice's text"},
+        headers=alice_headers,
+    )
+    assert response.status_code == 200
+
+    response = await client.get("/texts/note", headers=bob_headers)
+    assert response.status_code == 404
+
+    response = await client.delete("/texts/note", headers=bob_headers)
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/texts/", "/texts/invalid name", "/texts/a/b"])
+async def test_invalid_text_name_returns_400(client: AsyncClient, path: str) -> None:
+    response = await client.post(
+        "/users",
+        json={"username": "alice", "password": "password1"},
+    )
+    assert response.status_code == 201
+
+    response = await client.post(
+        "/sessions",
+        json={"username": "alice", "password": "password1"},
+    )
+    token = response.json()["data"]["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.get(path, headers=headers)
+    assert response.status_code == 400

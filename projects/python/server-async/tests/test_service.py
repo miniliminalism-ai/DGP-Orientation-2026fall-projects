@@ -114,6 +114,7 @@ def test_delete_text() -> None:
     assert service.handle("GET", "/texts/note", None, f"Bearer {token}")[0] == 404
     assert service.handle("DELETE", "/texts/note", None, f"Bearer {token}")[0] == 404
 
+
 def test_token_expiry() -> None:
     service = Service(token_ttl_seconds=1)
     account = {"username": "alice", "password": "password1"}
@@ -131,3 +132,19 @@ def test_token_expiry() -> None:
         401,
         {"message": "Login required"},
     )
+
+
+def test_relogin_replaces_old_token() -> None:
+    service = Service()
+    account = {"username": "alice", "password": "password1"}
+
+    service.handle("POST", "/users", account, "")
+    _, first = service.handle("POST", "/sessions", account, "")
+    old_token = first["data"]["token"]
+
+    _, second = service.handle("POST", "/sessions", account, "")
+    new_token = second["data"]["token"]
+
+    assert old_token != new_token
+    assert service.handle("GET", "/texts", None, f"Bearer {old_token}")[0] == 401
+    assert service.handle("GET", "/texts", None, f"Bearer {new_token}")[0] == 200
