@@ -81,6 +81,7 @@ def test_put_text() -> None:
         {"data": ["note"]},
     )
 
+
 def test_get_text() -> None:
     service = Service()
     account = {"username": "alice", "password": "password1"}
@@ -95,6 +96,7 @@ def test_get_text() -> None:
         {"data": "Hello RM"},
     )
     assert service.handle("GET", "/texts/missing", None, f"Bearer {token}")[0] == 404
+
 
 def test_delete_text() -> None:
     service = Service()
@@ -111,3 +113,21 @@ def test_delete_text() -> None:
     )
     assert service.handle("GET", "/texts/note", None, f"Bearer {token}")[0] == 404
     assert service.handle("DELETE", "/texts/note", None, f"Bearer {token}")[0] == 404
+
+def test_token_expiry() -> None:
+    service = Service(token_ttl_seconds=1)
+    account = {"username": "alice", "password": "password1"}
+
+    service.handle("POST", "/users", account, "")
+    status, result = service.handle("POST", "/sessions", account, "")
+    token = result["data"]["token"]
+
+    assert status == 200
+    assert result["data"]["expires_in"] == 1
+
+    service.users["alice"].token_deadline = 0
+
+    assert service.handle("GET", "/texts", None, f"Bearer {token}") == (
+        401,
+        {"message": "Login required"},
+    )

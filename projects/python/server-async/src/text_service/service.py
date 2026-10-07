@@ -5,6 +5,7 @@ import hmac
 import re
 import secrets
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,13 +36,15 @@ class User:
     salt: bytes
     digest: bytes
     token: str | None = None
+    token_deadline: float | None = None
     texts: dict[str, str] = field(default_factory=dict)
 
 
 class Service:
-    def __init__(self) -> None:
+    def __init__(self, token_ttl_seconds: int = 300) -> None:
         self.users: dict[str, User] = {}
         self.lock = threading.Lock()
+        self.token_ttl_seconds = token_ttl_seconds
 
     def handle(
         self, method: str, path: str, body: Any, authorization: str
@@ -93,8 +96,13 @@ class Service:
                 if self.users.get(name) is not user or not hmac.compare_digest(digest, expected):
                     return 401, {"message": "Invalid username or password"}
                 user.token = secrets.token_urlsafe(32)
-                # Later server task: record a deadline and return expires_in.
-                return 200, {"data": {"token": user.token}}
+                user.token_deadline = time.monotonic() + self.token_ttl_seconds
+                return 200, {
+                    "data": {
+                        "token": user.token,
+                        "expires_in": self.token_ttl_seconds,
+                    }
+                }
         if method == "PUT" and path.startswith("/texts/"):
             name = path.removeprefix("/texts/")
             if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
@@ -121,9 +129,7 @@ class Service:
                 return 400, {"message": "Invalid text name"}
 
             token = (
-                authorization.removeprefix("Bearer ")
-                if authorization.startswith("Bearer ")
-                else ""
+                authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else ""
             )
             with self.lock:
                 user = next(
@@ -141,9 +147,7 @@ class Service:
                 return 400, {"message": "Invalid text name"}
 
             token = (
-                authorization.removeprefix("Bearer ")
-                if authorization.startswith("Bearer ")
-                else ""
+                authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else ""
             )
             with self.lock:
                 user = next(
@@ -165,21 +169,18 @@ class Service:
                 user = next((u for u in self.users.values() if token and u.token == token), None)
                 if user is None:
                     return 401, {"message": "Login required"}
-                # Later server task: check token expiry here, before reading or modifying state.
+                if user.token_deadline is None or time.monotonic() >= user.token_deadline:
+                    user.token = None
+                    user.token_deadline = None
+                    return 401, {"message": "Login required"}
                 if path == "/sessions/current" and method == "DELETE":
                     user.token = None
-                    return 200, {"data": None}
-                if path == "/sessions/current" and method == "DELETE":
-                    user.token = None
+                    user.token_deadline = None
                     return 200, {"data": None}
                 if path == "/users/me" and method == "DELETE":
-                    username = next(
-                        name for name, value in self.users.items() if value is user
-                    )
+                    username = next(name for name, value in self.users.items() if value is user)
                     del self.users[username]
                     return 200, {"data": None}
-                if path == "/texts" and method == "GET":
-                    return 200, {"data": sorted(user.texts)}
                 if path == "/texts" and method == "GET":
                     return 200, {"data": sorted(user.texts)}
         return 404, {"message": "Not found"}
