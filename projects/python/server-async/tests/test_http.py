@@ -60,16 +60,6 @@ async def test_body_limit_and_routing(client: AsyncClient) -> None:
     assert (await client.get("/ping?test=1")).json() == {"data": "pong"}
 
 
-@pytest.mark.parametrize(
-    ("method", "path"),
-    [
-        ("DELETE", "/users/me"),
-    ],
-)
-async def test_unimplemented_routes_are_absent(client: AsyncClient, method: str, path: str) -> None:
-    assert (await client.request(method, path)).status_code == 404
-
-
 @pytest.mark.parametrize("path", ["/ping", "/users", "/sessions", "/sessions/current", "/texts"])
 async def test_wrong_method_precedes_authentication(client: AsyncClient, path: str) -> None:
     assert (await client.patch(path)).status_code == 405
@@ -89,3 +79,28 @@ async def test_echo(client: AsyncClient) -> None:
 
     response = await client.post("/echo", json={"text": "hello", "extra": "field"})
     assert response.status_code == 400
+
+async def test_delete_account(client: AsyncClient) -> None:
+    response = await client.post(
+        "/users",
+        json={"username": "alice", "password": "password1"},
+    )
+    assert response.status_code == 201
+
+    response = await client.post(
+        "/sessions",
+        json={"username": "alice", "password": "password1"},
+    )
+    token = response.json()["data"]["token"]
+
+    response = await client.delete(
+        "/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/sessions",
+        json={"username": "alice", "password": "password1"},
+    )
+    assert response.status_code == 401

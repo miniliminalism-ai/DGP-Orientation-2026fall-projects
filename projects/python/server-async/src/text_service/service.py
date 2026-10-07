@@ -15,6 +15,7 @@ ROUTES = (
     ("POST", "/users"),
     ("POST", "/sessions"),
     ("DELETE", "/sessions/current"),
+    ("DELETE", "/users/me"),
     ("GET", "/texts"),
     ("PUT", "/texts/{name}"),
 )
